@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -54,39 +53,39 @@ import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from
 // ║  前のゲーム(my-circle-game)と同じプロジェクトを使用   ║
 // ╚══════════════════════════════════════════════════════╝
 const firebaseConfig = {
-apiKey: “AIzaSyAj-lPXDJxGjTjPwif1fdorGxjn9tRya10”,
-authDomain: “my-circle-game.firebaseapp.com”,
-projectId: “my-circle-game”,
-storageBucket: “my-circle-game.firebasestorage.app”,
-messagingSenderId: “78412190070”,
-appId: “1:78412190070:web:e3c2706287475e6baa2a57”
+apiKey: "AIzaSyAj-lPXDJxGjTjPwif1fdorGxjn9tRya10",
+authDomain: "my-circle-game.firebaseapp.com",
+projectId: "my-circle-game",
+storageBucket: "my-circle-game.firebasestorage.app",
+messagingSenderId: "78412190070",
+appId: "1:78412190070:web:e3c2706287475e6baa2a57"
 };
 const fbApp = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const fbDb = getFirestore(fbApp);
-const FB_APP_ID = “colorfuldrop2”; // ランキングの保存場所の名前
-const FB_COL = () => collection(fbDb, “artifacts”, FB_APP_ID, “public”, “data”, “scores”);
+const FB_APP_ID = "colorfuldrop2"; // ランキングの保存場所の名前
+const FB_COL = () => collection(fbDb, "artifacts", FB_APP_ID, "public", "data", "scores");
 
 // Firebase匿名ログイン
 async function ensureAuth(){
 if(fbAuth.currentUser)return fbAuth.currentUser;
 try{ await signInAnonymously(fbAuth); return fbAuth.currentUser; }
-catch(e){ throw new Error(“認証エラー: “+e.code); }
+catch(e){ throw new Error("認証エラー: "+e.code); }
 }
 
 // Firebase経由でランキング取得
 async function loadLBFirebase(){
 try{
 if(!fbAuth.currentUser)await ensureAuth();
-var q=query(FB_COL(),orderBy(“score”,“desc”),limit(50));
+var q=query(FB_COL(),orderBy("score","desc"),limit(50));
 var snap=await getDocs(q);
 var rows=[];
 snap.forEach(function(doc){
 var d=doc.data();
-rows.push({name:String(d.name||”???”),score:Number(d.score)||0,level:Number(d.level)||1,date:String(d.date||””)});
+rows.push({name:String(d.name||"???"),score:Number(d.score)||0,level:Number(d.level)||1,date:String(d.date||"")});
 });
 return rows;
-}catch(e){ console.warn(“LB fetch failed”,e); return []; }
+}catch(e){ console.warn("LB fetch failed",e); return []; }
 }
 
 // Firebase経由でスコア登録
@@ -470,7 +469,3 @@ else{window.addEventListener("load",startApp);}
 
 </body>
 </html>
-
-
-
-
