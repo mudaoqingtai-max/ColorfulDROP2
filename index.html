@@ -77,7 +77,7 @@ catch(e){ throw new Error("認証エラー: "+e.code); }
 async function loadLBFirebase(){
 try{
 if(!fbAuth.currentUser)await ensureAuth();
-var q=query(FB_COL(),orderBy("score","desc"),limit(50));
+var q=query(FB_COL(),orderBy("score","desc"),limit(100)); // ★ここを50から100に変更★
 var snap=await getDocs(q);
 var rows=[];
 snap.forEach(function(doc){
