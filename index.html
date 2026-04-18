@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -24,10 +25,32 @@
 @keyframes blockFall4{0%{transform:translateY(-400%);animation-timing-function:cubic-bezier(0.4,0,1,1)}75%{transform:translateY(6%)}88%{transform:translateY(-3%)}100%{transform:translateY(0)}}
 @keyframes blockFall5{0%{transform:translateY(-500%);animation-timing-function:cubic-bezier(0.4,0,1,1)}75%{transform:translateY(6%)}88%{transform:translateY(-3%)}100%{transform:translateY(0)}}
 @keyframes blockFallBig{0%{transform:translateY(-600%);animation-timing-function:cubic-bezier(0.4,0,1,1)}75%{transform:translateY(6%)}88%{transform:translateY(-3%)}100%{transform:translateY(0)}}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 *{-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;box-sizing:border-box}
 html,body{overscroll-behavior:none;overflow:hidden;margin:0;padding:0;background:#0a0a1a;position:fixed;width:100%;height:100%;}
 input{user-select:text;-webkit-user-select:text}
 #root{width:100%;height:100%;overflow:hidden;}
+.lb-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:linear-gradient(180deg,#0a0a1a 0%,#1a0a2e 50%,#0a0a1a 100%);
+  display:flex;flex-direction:column;
+  z-index:9999;
+  overflow:hidden;
+}
+.lb-list{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  padding:0 16px 24px;
+}
+.spinner{
+  width:40px;height:40px;
+  border:4px solid rgba(255,255,255,0.12);
+  border-top-color:#ffd534;
+  border-radius:50%;
+  animation:spin 0.75s linear infinite;
+}
 </style>
 </head>
 <body>
@@ -48,47 +71,40 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously } from "firebase/auth";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "firebase/firestore";
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  ★ Firebase設定 ★                                    ║
-// ║  前のゲーム(my-circle-game)と同じプロジェクトを使用   ║
-// ╚══════════════════════════════════════════════════════╝
 const firebaseConfig = {
-apiKey: "AIzaSyAj-lPXDJxGjTjPwif1fdorGxjn9tRya10",
-authDomain: "my-circle-game.firebaseapp.com",
-projectId: "my-circle-game",
-storageBucket: "my-circle-game.firebasestorage.app",
-messagingSenderId: "78412190070",
-appId: "1:78412190070:web:e3c2706287475e6baa2a57"
+apiKey: “AIzaSyAj-lPXDJxGjTjPwif1fdorGxjn9tRya10”,
+authDomain: “my-circle-game.firebaseapp.com”,
+projectId: “my-circle-game”,
+storageBucket: “my-circle-game.firebasestorage.app”,
+messagingSenderId: “78412190070”,
+appId: “1:78412190070:web:e3c2706287475e6baa2a57”
 };
 const fbApp = initializeApp(firebaseConfig);
 const fbAuth = getAuth(fbApp);
 const fbDb = getFirestore(fbApp);
-const FB_APP_ID = "colorfuldrop2"; // ランキングの保存場所の名前
-const FB_COL = () => collection(fbDb, "artifacts", FB_APP_ID, "public", "data", "scores");
+const FB_APP_ID = “colorfuldrop2”;
+const FB_COL = () => collection(fbDb, “artifacts”, FB_APP_ID, “public”, “data”, “scores”);
 
-// Firebase匿名ログイン
 async function ensureAuth(){
 if(fbAuth.currentUser)return fbAuth.currentUser;
 try{ await signInAnonymously(fbAuth); return fbAuth.currentUser; }
-catch(e){ throw new Error("認証エラー: "+e.code); }
+catch(e){ throw new Error(“認証エラー: “+e.code); }
 }
 
-// Firebase経由でランキング取得
 async function loadLBFirebase(){
 try{
 if(!fbAuth.currentUser)await ensureAuth();
-var q=query(FB_COL(),orderBy("score","desc"),limit(100)); // ★ここを50から100に変更★
+var q=query(FB_COL(),orderBy(“score”,“desc”),limit(100));
 var snap=await getDocs(q);
 var rows=[];
 snap.forEach(function(doc){
 var d=doc.data();
-rows.push({name:String(d.name||"???"),score:Number(d.score)||0,level:Number(d.level)||1,date:String(d.date||"")});
+rows.push({name:String(d.name||”???”),score:Number(d.score)||0,level:Number(d.level)||1,date:String(d.date||””)});
 });
 return rows;
-}catch(e){ console.warn("LB fetch failed",e); return []; }
+}catch(e){ console.warn(“LB fetch failed”,e); return []; }
 }
 
-// Firebase経由でスコア登録
 async function addToLBFirebase(name,score,level){
 var user=await ensureAuth();
 await addDoc(FB_COL(),{
@@ -99,7 +115,6 @@ uid:user.uid
 return await loadLBFirebase();
 }
 
-// グローバルに公開（通常scriptから参照）
 window.__fbLB = { loadLBFirebase, addToLBFirebase, ensureAuth };
 </script>
 
@@ -110,7 +125,6 @@ var R=React,RD=ReactDOM;
 var useState=R.useState,useEffect=R.useEffect,useReducer=R.useReducer,useCallback=R.useCallback,useRef=R.useRef;
 var h=R.createElement;
 
-// ランキング関数（moduleスクリプトが先に読まれてから使う）
 function loadLB(){
   if(window.__fbLB)return window.__fbLB.loadLBFirebase();
   return Promise.resolve([]);
@@ -122,12 +136,10 @@ function addToLB(name,score,level){
 
 var COLS=6,ROWS=15,MAX_LV=30;
 var COLORS=["#ff3b6f","#3b8bff","#2dd36f","#ffd534","#bf5af2"];
-// LV1〜30の上昇間隔(ms)
 var RISE_BASE=[4200,3800,3500,3200,2900,2600,2400,2200,2000,1850,
                1700,1550,1400,1300,1200,1100,1050,1000,950,900,
                860,820,780,740,700,660,620,580,540,500];
 
-// コンボ倍率(1〜30): 三角数ベースで緩やかに上昇
 var CHAIN_MUL=[1,3,6,10,15,21,28,36,45,55,66,78,91,105,120,136,153,171,190,210,231,253,276,300,325,351,378,406,435,465];
 var CHAIN_LBL=["","","GREAT!","AMAZING!","UNREAL!!","INSANE!!","GODLIKE!","LEGEND!!","MYTHIC!!!","DIVINE!!!!",
                "OMEGA!","ULTRA!!","HYPER!!!","TITAN!!!!","CHAOS!!!!!","BLAZE!","STORM!!","NOVA!!!","APEX!!!!","ZENITH!!!!!",
@@ -139,7 +151,7 @@ var CHAIN_CLR=["","","#ffd534","#ff9f43","#ff3b6f","#bf5af2","#3b8bff","#2dd36f"
 
 var MEDALS=["🥇","🥈","🥉"],MEDAL_CLR=["#ffd534","#c0c0c0","#cd7f32"];
 var F="'Orbitron',monospace",MO="'JetBrains Mono',monospace";
-var CLEAR_ANIM_MS=600; // 消去アニメーション時間(ms)
+var CLEAR_ANIM_MS=600;
 
 var idC=0;function uid(){return"b"+(++idC)}
 function getBg(b){return b?"linear-gradient(145deg,"+b.color+","+b.color+"99)":"transparent"}
@@ -152,10 +164,10 @@ function mkGrid(){var g=Array.from({length:ROWS},function(){return Array(COLS).f
 function clG(g){return g.map(function(r){return r.map(function(c){return c?{color:c.color,id:c.id}:null})})}
 
 function findM(g){var m=new Set();for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){if(!g[r][c])continue;var b=g[r][c];var hh=[{r:r,c:c}];for(var cc=c+1;cc<COLS;cc++){if(!g[r][cc]||g[r][cc].color!==b.color)break;hh.push({r:r,c:cc})}if(hh.length>=3)hh.forEach(function(p){m.add(p.r+","+p.c)});var vv=[{r:r,c:c}];for(var rr=r+1;rr<ROWS;rr++){if(!g[rr][c]||g[rr][c].color!==b.color)break;vv.push({r:rr,c:c})}if(vv.length>=3)vv.forEach(function(p){m.add(p.r+","+p.c)})}return m}
-// gravity: グリッドを返すだけでなく落下距離マップも返す
+
 function gravityWithFall(g){
   var ng=clG(g);
-  var fall={};// "r,c" -> 落下マス数
+  var fall={};
   for(var c=0;c<COLS;c++){
     var bl=[];
     for(var r=0;r<ROWS;r++)if(ng[r][c])bl.push({b:ng[r][c],origR:r});
@@ -180,7 +192,6 @@ case"SWAP":{
   if(s.go)return s;
   var r=a.r,c=a.c,tr=r+a.dr,tc=c+a.dc;
   if(tr<0||tr>=ROWS||tc<0||tc>=COLS||!s.grid[r]||!s.grid[r][c])return s;
-  // 消去中のマスが絡む場合のみブロック
   if(s.clearing&&(s.clearing.has(r+","+c)||s.clearing.has(tr+","+tc)))return s;
   var ng=clG(s.grid);var tmp=ng[r][c];ng[r][c]=ng[tr][tc];ng[tr][tc]=tmp;
   var gf=gravityWithFall(ng);return O({},s,{grid:gf.grid,fallMap:gf.fall,ch:0,mv:s.mv+1})}
@@ -188,7 +199,6 @@ case"CHK":{
   if(s.clearing)return s;
   var mt=findM(s.grid);
   if(mt.size===0)return O({},s,{sCh:false});
-  // clearingセットを記録してアニメーション開始
   return O({},s,{clearing:mt,sCh:false});
 }
 case"CLEAR_DONE":{
@@ -231,7 +241,7 @@ function hat(a){if(!bgmOn)return;var bs=cx.sampleRate*.05,buf=cx.createBuffer(1,
 function kick(){if(!bgmOn)return;var o=cx.createOscillator(),g=cx.createGain();o.type="sine";o.frequency.value=150;o.frequency.exponentialRampToValueAtTime(40,cx.currentTime+.12);g.gain.value=.6;g.gain.exponentialRampToValueAtTime(.001,cx.currentTime+.3);o.connect(g);g.connect(mg);o.start(cx.currentTime);o.stop(cx.currentTime+.3);bgmN.push(o,g)}
 var B=3e3,b=B/4;function lp(){if(!bgmOn)return;pad();bass();kick();hat(false);setTimeout(function(){if(bgmOn)hat(true)},b);setTimeout(function(){if(bgmOn){kick();hat(false)}},b*2);setTimeout(function(){if(bgmOn)hat(true)},b*3);setTimeout(function(){if(bgmOn)bass()},b*2);setTimeout(lp,B)}lp()}
 
-// IndexedDB（個人データ専用：ハイスコア・プレイ数など）
+// IndexedDB（個人データ専用）
 var DB="colorfuldrop2",STO="gamedata";
 function openDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,1);r.onupgradeneeded=function(){r.result.createObjectStore(STO)};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
 function dbGet(k){return openDB().then(function(db){return new Promise(function(res,rej){var tx=db.transaction(STO,"readonly");var r=tx.objectStore(STO).get(k);r.onsuccess=function(){db.close();res(r.result!=null?r.result:null)};r.onerror=function(){db.close();rej(r.error)}})}).catch(function(){return null})}
@@ -239,9 +249,11 @@ function dbSet(k,v){return openDB().then(function(db){return new Promise(functio
 function loadSave(){return dbGet("save")}
 function writeSave(d){return dbSet("save",d)}
 
-// ── スクロール防止（全体） ──────────────────────────
-document.addEventListener("touchmove",function(e){e.preventDefault()},{passive:false});
-document.addEventListener("touchstart",function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
+// スクロール防止（ランキング表示中は解除）
+var tmHandler=function(e){e.preventDefault();};
+document.addEventListener("touchmove",tmHandler,{passive:false});
+function enableScroll(){document.removeEventListener("touchmove",tmHandler);}
+function disableScroll(){document.addEventListener("touchmove",tmHandler,{passive:false});}
 
 // ── Component ──────────────────────────────────────
 function App(){
@@ -255,28 +267,31 @@ function App(){
   var mRef=useRef(null);
   var _m=useState(false),muted=_m[0],setMuted=_m[1];
   var _lb=useState([]),lb=_lb[0],setLb=_lb[1];
-  var _slb=useState(false),showLB=_slb[0],setShowLB=_slb[1];
+  var _showLB=useState(false),showLB=_showLB[0],setShowLB=_showLB[1];
+  var _lbLoading=useState(false),lbLoading=_lbLoading[0],setLbLoading=_lbLoading[1];
   var _pn=useState(""),pName=_pn[0],setPName=_pn[1];
   var _sub=useState(false),submitted=_sub[0],setSub=_sub[1];
   var _ll=useState(false),lbLoad=_ll[0],setLbLoad=_ll[1];
 
   var scr=s.scr,grid=s.grid,sc=s.sc,hi=s.hi,lv=s.lv,ch=s.ch,chL=s.chL,chC=s.chC,go=s.go,nr=s.nr,nhi=s.nhi,sCh=s.sCh,tc=s.tc,plays=s.plays,mCh=s.mCh,mLv=s.mLv,mv=s.mv,clearing=s.clearing,fallMap=s.fallMap||{};
 
-  useEffect(function(){loadSave().then(function(data){if(data)d({type:"INIT",hi:data.hi,plays:data.plays,mCh:data.mCh,mLv:data.mLv})});loadLB().then(setLb)},[]);
+  // ランキング表示中はスクロール防止を解除してリストをスクロールできるようにする
+  useEffect(function(){
+    if(showLB){enableScroll();}
+    else{disableScroll();}
+    return function(){disableScroll();};
+  },[showLB]);
+
+  useEffect(function(){loadSave().then(function(data){if(data)d({type:"INIT",hi:data.hi,plays:data.plays,mCh:data.mCh,mLv:data.mLv})})},[]);
   useEffect(function(){if(plays>0)writeSave({hi:hi,plays:plays,mCh:mCh,mLv:mLv})},[hi,plays,mCh,mLv]);
   useEffect(function(){if(go)writeSave({hi:hi,plays:plays,mCh:mCh,mLv:mLv})},[go]);
   useEffect(function(){if(scr==="game"&&!go&&!muted)startBGM();else stopBGM();return stopBGM},[scr,go,muted]);
-
-  // CHK: スワップ後 or CLEAR_DONE後
   useEffect(function(){if(scr!=="game"||go||clearing)return;var t=setTimeout(function(){d({type:"CHK"})},120);return function(){clearTimeout(t)}},[mv,scr,go,clearing]);
-
-  // 消去アニメーション: clearingが立ったらアニメ時間後にCLEAR_DONE
   useEffect(function(){
     if(!clearing)return;
     var t=setTimeout(function(){d({type:"CLEAR_DONE"})},CLEAR_ANIM_MS);
     return function(){clearTimeout(t)};
   },[clearing]);
-
   useEffect(function(){if(ch>0&&ch!==prevCh.current){sfxM(ch);vib(ch>2?[40,20,40]:25);if(ch>=2)sfxC(ch)}prevCh.current=ch},[ch]);
   useEffect(function(){if(!sCh)return;var t=setTimeout(function(){d({type:"HCH"})},700);return function(){clearTimeout(t)}},[sCh,ch]);
   useEffect(function(){if(lv>prevLv.current){sfxLU();vib([40,40,40,40,80])}prevLv.current=lv},[lv]);
@@ -285,86 +300,110 @@ function App(){
   useEffect(function(){if(scr!=="game"||go)return;var iv=setInterval(function(){d({type:"LVUP"})},1e4);return function(){clearInterval(iv)}},[scr,go]);
   useEffect(function(){if(go){sfxGO();vib([50,30,50])}},[go]);
   useEffect(function(){if(scr!=="game"||go||ch===0)return;clearTimeout(cRef.current);cRef.current=setTimeout(function(){d({type:"RCHAIN"})},1200);return function(){clearTimeout(cRef.current)}},[ch,mv,scr,go]);
-  useEffect(function(){if(scr==="title"||scr==="result"){setSub(false);loadLB().then(setLb)}},[scr]);
+  useEffect(function(){if(scr==="title"||scr==="result"){setSub(false);}},[scr]);
+
+  // ランキングを開く（スピナー表示→取得→表示）
+  var openLB=useCallback(function(){
+    setShowLB(true);
+    setLbLoading(true);
+    loadLB().then(function(rows){setLb(rows);setLbLoading(false);});
+  },[]);
 
   var getCell=useCallback(function(cx,cy){var el=gridEl.current;if(!el)return null;var rc=el.getBoundingClientRect(),pad=4,gap=2;var iW=rc.width-pad*2,iH=rc.height-pad*2;var cW=(iW-gap*(COLS-1))/COLS,cH=(iH-gap*(ROWS-1))/ROWS;var col=Math.floor((cx-rc.left-pad)/(cW+gap));var row=Math.floor((cy-rc.top-pad)/(cH+gap));if(row<0||row>=ROWS||col<0||col>=COLS)return null;return{r:row,c:col}},[]);
 
   var onTS=useCallback(function(ev){if(go)return;ev.preventDefault();var t=ev.touches[0],cell=getCell(t.clientX,t.clientY);if(cell)swRef.current={x:t.clientX,y:t.clientY,r:cell.r,c:cell.c}},[go,getCell]);
   var onTE=useCallback(function(ev){if(!swRef.current||go)return;ev.preventDefault();var t=ev.changedTouches[0],sw=swRef.current;swRef.current=null;var dx=t.clientX-sw.x,dy=t.clientY-sw.y,adx=Math.abs(dx),ady=Math.abs(dy);if(Math.max(adx,ady)<10)return;sfxS();d({type:"SWAP",r:sw.r,c:sw.c,dr:adx>ady?0:(dy>0?1:-1),dc:adx>ady?(dx>0?1:-1):0})},[go]);
   var onTM=useCallback(function(ev){ev.preventDefault();},[]);
-
   var onMD=useCallback(function(ev){if(go)return;var cell=getCell(ev.clientX,ev.clientY);if(cell)mRef.current={x:ev.clientX,y:ev.clientY,r:cell.r,c:cell.c}},[go,getCell]);
   var onMU=useCallback(function(ev){if(!mRef.current||go)return;var sw=mRef.current;mRef.current=null;var dx=ev.clientX-sw.x,dy=ev.clientY-sw.y,adx=Math.abs(dx),ady=Math.abs(dy);if(Math.max(adx,ady)<10)return;sfxS();d({type:"SWAP",r:sw.r,c:sw.c,dr:adx>ady?0:(dy>0?1:-1),dc:adx>ady?(dx>0?1:-1):0})},[go]);
 
   var toggleMute=useCallback(function(){setMuted(function(m){if(!m)stopBGM();return!m})},[]);
   var handleStart=useCallback(function(){setShowLB(false);d({type:"START"})},[]);
-  function handleSubmit(){if(!pName.trim()||submitted||sc===0)return;setLbLoad(true);addToLB(pName.trim().slice(0,12),sc,lv).then(function(board){setLb(board);setSub(true);setLbLoad(false)})}
+  function handleSubmit(){
+    if(!pName.trim()||submitted||sc===0)return;
+    setLbLoad(true);
+    addToLB(pName.trim().slice(0,12),sc,lv).then(function(board){setLb(board);setSub(true);setLbLoad(false)});
+  }
 
-  function lbEntry(en,i,compact){var medal=i<3?MEDALS[i]:null;var clr=i<3?MEDAL_CLR[i]:null;
+  function lbEntry(en,i,compact){
+    var medal=i<3?MEDALS[i]:null;var clr=i<3?MEDAL_CLR[i]:null;
     return h("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:compact?"8px 12px":"10px 14px",marginBottom:4,background:i===0?"rgba(255,213,52,"+(compact?.12:.1)+")":i===1?"rgba(192,192,192,.06)":i===2?"rgba(205,127,50,.06)":"transparent",borderRadius:compact?10:8,border:clr?"1px solid "+clr+"44":"1px solid rgba(255,255,255,.05)"}},
       h("div",{style:{display:"flex",alignItems:"center",gap:compact?8:10}},
         h("div",{style:{fontSize:medal?(compact?"1.1rem":"1rem"):"0.85rem",fontWeight:900,color:clr||"rgba(255,255,255,.4)",fontFamily:medal?undefined:MO,width:24,textAlign:"center"}},medal||(i+1)),
         h("div",{style:{fontSize:"0.8rem",fontWeight:700,color:clr||"rgba(255,255,255,.6)"}},en.name)),
       h("div",{style:{textAlign:"right"}},
         h("div",{style:{fontSize:compact?"0.9rem":"0.85rem",fontWeight:900,fontFamily:MO,color:clr||"#fff"}},en.score.toLocaleString()),
-        compact?h("div",{style:{fontSize:"0.45rem",color:"rgba(255,255,255,.3)",fontFamily:MO}},"LV"+en.level):
-        h("div",{style:{fontSize:"0.5rem",color:"rgba(255,255,255,.3)",fontFamily:MO}},"LV"+en.level+" · "+en.date)))}
+        compact
+          ?h("div",{style:{fontSize:"0.45rem",color:"rgba(255,255,255,.3)",fontFamily:MO}},"LV"+en.level)
+          :h("div",{style:{fontSize:"0.5rem",color:"rgba(255,255,255,.3)",fontFamily:MO}},"LV"+en.level+" · "+en.date)))}
 
-  // TITLE - Ranking
-  if(scr==="title"&&showLB){
-    return h("div",{style:{width:"100%",height:"100%",background:"linear-gradient(180deg,#0a0a1a,#1a0a2e 50%,#0a0a1a)",display:"flex",flexDirection:"column",alignItems:"center",fontFamily:F,color:"#fff",padding:20,overflow:"auto"}},
-      h("div",{style:{marginTop:20,marginBottom:16,fontSize:"1.2rem",fontWeight:900,color:"#ffd534",letterSpacing:3}},"🏆 RANKING"),
-      h("div",{style:{width:"100%",maxWidth:340,flex:1,overflowY:"auto"}},
-        lb.length===0?h("div",{style:{textAlign:"center",color:"rgba(255,255,255,.3)",fontFamily:MO,fontSize:"0.8rem",marginTop:40}},"まだスコアがありません",h("br"),"プレイしてスコアを登録しよう！"):
-        lb.map(function(en,i){return lbEntry(en,i,false)})),
-      h("div",{onClick:function(){setShowLB(false)},style:{fontFamily:F,fontSize:"0.9rem",fontWeight:700,padding:"14px 40px",background:"linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.06))",color:"#fff",borderRadius:50,cursor:"pointer",letterSpacing:2,textAlign:"center",marginTop:16,marginBottom:16,border:"1px solid rgba(255,255,255,.2)",boxShadow:"0 2px 12px rgba(0,0,0,.3)"}},"← もどる"))}
+  // ランキングオーバーレイ（position:fixed で全画面に重ねる・スクロール可能）
+  var lbOverlay=showLB
+    ?h("div",{className:"lb-overlay"},
+        h("div",{style:{padding:"20px 20px 10px",textAlign:"center",flexShrink:0}},
+          h("div",{style:{fontSize:"1.2rem",fontWeight:900,color:"#ffd534",letterSpacing:3,fontFamily:F}},"🏆 RANKING")),
+        h("div",{className:"lb-list"},
+          lbLoading
+            ?h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",paddingTop:60,gap:16}},
+                h("div",{className:"spinner"}),
+                h("div",{style:{fontSize:"0.65rem",color:"rgba(255,255,255,.35)",fontFamily:MO,letterSpacing:2}},"LOADING..."))
+            :lb.length===0
+              ?h("div",{style:{textAlign:"center",color:"rgba(255,255,255,.3)",fontFamily:MO,fontSize:"0.8rem",marginTop:40}},
+                  "まだスコアがありません",h("br"),"プレイしてスコアを登録しよう！")
+              :lb.map(function(en,i){return lbEntry(en,i,false)})),
+        h("div",{style:{padding:"10px 20px 28px",flexShrink:0}},
+          h("div",{onClick:function(){setShowLB(false)},style:{fontFamily:F,fontSize:"0.9rem",fontWeight:700,padding:"14px",background:"linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.06))",color:"#fff",borderRadius:50,cursor:"pointer",letterSpacing:2,textAlign:"center",border:"1px solid rgba(255,255,255,.2)",boxShadow:"0 2px 12px rgba(0,0,0,.3)"}},"← もどる")))
+    :null;
 
   // TITLE
   if(scr==="title"){
-    return h("div",{style:{width:"100%",height:"100%",background:"linear-gradient(180deg,#0a0a1a,#1a0a2e 50%,#0a0a1a)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:F,color:"#fff",padding:20,position:"relative",overflow:"hidden"}},
-      h("div",{style:{position:"absolute",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(255,59,111,.12),transparent)",top:"8%",left:"-5%",filter:"blur(40px)",pointerEvents:"none"}}),
-      h("div",{style:{position:"absolute",width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(59,139,255,.08),transparent)",bottom:"8%",right:"-8%",filter:"blur(50px)",pointerEvents:"none"}}),
-      h("div",{style:{fontSize:"clamp(2rem,8vw,3.5rem)",fontWeight:900,animation:"glow 3s ease-in-out infinite",letterSpacing:3,marginBottom:4}},"Colorful"),
-      h("div",{style:{fontSize:"clamp(1.2rem,5vw,2rem)",fontWeight:900,color:"#3b8bff",letterSpacing:8,marginBottom:32}},
-        "DROP",h("span",{style:{fontSize:"1em",color:"#ffd534",marginLeft:4}},"2")),
-      h("div",{style:{display:"flex",gap:8,marginBottom:40,animation:"floatB 3s ease-in-out infinite",pointerEvents:"none"}},COLORS.map(function(c,i){return h("div",{key:i,style:{width:20,height:20,borderRadius:5,background:c,boxShadow:"0 0 12px "+c+"88"}})})),
-      h("div",{onClick:handleStart,style:{fontFamily:F,fontSize:"clamp(1.3rem,5vw,1.8rem)",fontWeight:700,padding:"20px 70px",background:"linear-gradient(135deg,#ff3b6f,#ff6b8a)",color:"#fff",borderRadius:50,cursor:"pointer",letterSpacing:4,textAlign:"center",boxShadow:"0 0 40px rgba(255,59,111,.5),0 6px 20px rgba(0,0,0,.4)",marginBottom:14,zIndex:10}},"▶ PLAY"),
-      h("div",{onClick:function(){loadLB().then(setLb);setShowLB(true)},style:{fontFamily:F,fontSize:"0.8rem",fontWeight:700,padding:"12px 32px",background:"rgba(255,255,255,.08)",color:"#3b8bff",borderRadius:50,cursor:"pointer",letterSpacing:2,textAlign:"center",border:"1px solid rgba(59,139,255,.3)",marginBottom:20,zIndex:10}},"🏆 RANKING"),
-      hi>0?h("div",{style:{fontSize:"0.85rem",color:"rgba(255,255,255,.45)",fontFamily:MO}},"HI-SCORE: "+hi.toLocaleString()):null,
-      plays>0?h("div",{style:{marginTop:10,fontSize:"0.7rem",color:"rgba(255,255,255,.3)",fontFamily:MO,textAlign:"center",lineHeight:1.8}},"PLAYS: "+plays+" · MAX CHAIN: "+mCh+" · MAX LV: "+mLv):null,
-      h("div",{style:{position:"absolute",bottom:20,left:0,right:0,textAlign:"center",pointerEvents:"none",padding:"0 24px"}},
-        h("div",{style:{fontSize:"0.8rem",color:"rgba(255,255,255,.5)",fontFamily:MO,lineHeight:1.9,background:"rgba(255,255,255,.04)",borderRadius:12,padding:"12px 16px",display:"inline-block"}},"🎮 ブロックをスワイプして入れ替え",h("br"),"同じ色を3つ並べて消そう！")))}
+    return h(R.Fragment,null,
+      h("div",{style:{width:"100%",height:"100%",background:"linear-gradient(180deg,#0a0a1a,#1a0a2e 50%,#0a0a1a)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:F,color:"#fff",padding:20,position:"relative",overflow:"hidden"}},
+        h("div",{style:{position:"absolute",width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(255,59,111,.12),transparent)",top:"8%",left:"-5%",filter:"blur(40px)",pointerEvents:"none"}}),
+        h("div",{style:{position:"absolute",width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(59,139,255,.08),transparent)",bottom:"8%",right:"-8%",filter:"blur(50px)",pointerEvents:"none"}}),
+        h("div",{style:{fontSize:"clamp(2rem,8vw,3.5rem)",fontWeight:900,animation:"glow 3s ease-in-out infinite",letterSpacing:3,marginBottom:4}},"Colorful"),
+        h("div",{style:{fontSize:"clamp(1.2rem,5vw,2rem)",fontWeight:900,color:"#3b8bff",letterSpacing:8,marginBottom:32}},
+          "DROP",h("span",{style:{fontSize:"1em",color:"#ffd534",marginLeft:4}},"2")),
+        h("div",{style:{display:"flex",gap:8,marginBottom:40,animation:"floatB 3s ease-in-out infinite",pointerEvents:"none"}},
+          COLORS.map(function(c,i){return h("div",{key:i,style:{width:20,height:20,borderRadius:5,background:c,boxShadow:"0 0 12px "+c+"88"}})})),
+        h("div",{onClick:handleStart,style:{fontFamily:F,fontSize:"clamp(1.3rem,5vw,1.8rem)",fontWeight:700,padding:"20px 70px",background:"linear-gradient(135deg,#ff3b6f,#ff6b8a)",color:"#fff",borderRadius:50,cursor:"pointer",letterSpacing:4,textAlign:"center",boxShadow:"0 0 40px rgba(255,59,111,.5),0 6px 20px rgba(0,0,0,.4)",marginBottom:14,zIndex:10}},"▶ PLAY"),
+        h("div",{onClick:openLB,style:{fontFamily:F,fontSize:"0.8rem",fontWeight:700,padding:"12px 32px",background:"rgba(255,255,255,.08)",color:"#3b8bff",borderRadius:50,cursor:"pointer",letterSpacing:2,textAlign:"center",border:"1px solid rgba(59,139,255,.3)",marginBottom:20,zIndex:10}},"🏆 RANKING"),
+        hi>0?h("div",{style:{fontSize:"0.85rem",color:"rgba(255,255,255,.45)",fontFamily:MO}},"HI-SCORE: "+hi.toLocaleString()):null,
+        plays>0?h("div",{style:{marginTop:10,fontSize:"0.7rem",color:"rgba(255,255,255,.3)",fontFamily:MO,textAlign:"center",lineHeight:1.8}},"PLAYS: "+plays+" · MAX CHAIN: "+mCh+" · MAX LV: "+mLv):null,
+        h("div",{style:{position:"absolute",bottom:20,left:0,right:0,textAlign:"center",pointerEvents:"none",padding:"0 24px"}},
+          h("div",{style:{fontSize:"0.8rem",color:"rgba(255,255,255,.5)",fontFamily:MO,lineHeight:1.9,background:"rgba(255,255,255,.04)",borderRadius:12,padding:"12px 16px",display:"inline-block"}},"🎮 ブロックをスワイプして入れ替え",h("br"),"同じ色を3つ並べて消そう！"))),
+      lbOverlay)}
 
   // RESULT
   if(scr==="result"){
-    return h("div",{style:{width:"100%",height:"100%",background:"linear-gradient(180deg,#0a0a1a,#1a0a2e)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:F,color:"#fff",padding:20,overflow:"auto"}},
-      h("div",{style:{fontSize:"clamp(1.6rem,6vw,2.8rem)",fontWeight:900,marginBottom:10,color:"#ff3b6f",animation:"slideIn .4s ease-out"}},"GAME OVER"),
-      nhi?h("div",{style:{fontSize:"clamp(0.9rem,3.5vw,1.3rem)",color:"#ffd534",fontWeight:700,marginBottom:12,animation:"hiGlow 1.5s ease-in-out infinite",letterSpacing:3}},"★ NEW HI-SCORE! ★"):null,
-      h("div",{style:{background:"rgba(255,255,255,.05)",borderRadius:16,padding:"20px 28px",textAlign:"center",animation:"slideIn .6s ease-out",border:"1px solid rgba(255,255,255,.08)",marginBottom:18,minWidth:200}},
-        h("div",{style:{fontSize:"0.65rem",color:"rgba(255,255,255,.35)",letterSpacing:3,marginBottom:6}},"SCORE"),
-        h("div",{style:{fontSize:"clamp(1.8rem,7vw,3rem)",fontWeight:900,fontFamily:MO,color:nhi?"#ffd534":"#fff"}},sc.toLocaleString()),
-        h("div",{style:{marginTop:10,fontSize:"0.7rem",color:"rgba(255,255,255,.4)",fontFamily:MO,lineHeight:2}},"LV "+lv+" · CLEARED "+tc+" · CHAIN "+mCh)),
-      h("div",{style:{width:"100%",maxWidth:300,marginBottom:18,animation:"slideIn .8s ease-out"}},
-        !submitted?h("div",{style:{display:"flex",gap:8}},
-          h("input",{type:"text",placeholder:"名前を入力",maxLength:12,value:pName,onChange:function(ev){setPName(ev.target.value)},onKeyDown:function(ev){if(ev.key==="Enter")handleSubmit()},style:{flex:1,padding:"10px 14px",borderRadius:25,border:"1px solid rgba(255,255,255,.35)",background:"rgba(255,255,255,.12)",color:"#fff",fontFamily:MO,fontSize:"16px",outline:"none"}}),
-          h("div",{onClick:handleSubmit,style:{padding:"10px 20px",borderRadius:25,background:sc>0&&pName.trim()?"linear-gradient(135deg,#3b8bff,#5a9fff)":"rgba(255,255,255,.08)",color:sc>0&&pName.trim()?"#fff":"rgba(255,255,255,.5)",fontFamily:F,fontSize:"0.75rem",fontWeight:700,cursor:sc>0&&pName.trim()?"pointer":"default",letterSpacing:1,opacity:1,whiteSpace:"nowrap",display:"flex",alignItems:"center",border:"1px solid rgba(255,255,255,.25)"}},lbLoad?"...":"登録")):
-        h("div",{style:{textAlign:"center",color:"#2dd36f",fontFamily:MO,fontSize:"0.8rem"}},"✓ ランキングに登録しました！")),
-      lb.length>0?h("div",{style:{width:"100%",maxWidth:300,marginBottom:18}},
-        h("div",{style:{fontSize:"0.6rem",color:"rgba(255,255,255,.3)",letterSpacing:3,marginBottom:8,textAlign:"center"}},"TOP 3"),
-        lb.slice(0,3).map(function(en,i){return lbEntry(en,i,true)})):null,
-      h("div",{style:{display:"flex",gap:14,zIndex:10}},
-        h("div",{onClick:handleStart,style:{fontFamily:F,fontSize:"1rem",fontWeight:700,padding:"16px 36px",background:"linear-gradient(135deg,#ff3b6f,#ff6b8a)",color:"#fff",borderRadius:50,cursor:"pointer",letterSpacing:2,boxShadow:"0 0 20px rgba(255,59,111,.3)",textAlign:"center"}},"RETRY"),
-        h("div",{onClick:function(){d({type:"HOME"})},style:{fontFamily:F,fontSize:"1rem",fontWeight:700,padding:"16px 36px",background:"rgba(255,255,255,.08)",color:"#fff",border:"1px solid rgba(255,255,255,.15)",borderRadius:50,cursor:"pointer",letterSpacing:2,textAlign:"center"}},"HOME")))}
+    return h(R.Fragment,null,
+      h("div",{style:{width:"100%",height:"100%",background:"linear-gradient(180deg,#0a0a1a,#1a0a2e)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:F,color:"#fff",padding:20,overflow:"auto"}},
+        h("div",{style:{fontSize:"clamp(1.6rem,6vw,2.8rem)",fontWeight:900,marginBottom:10,color:"#ff3b6f",animation:"slideIn .4s ease-out"}},"GAME OVER"),
+        nhi?h("div",{style:{fontSize:"clamp(0.9rem,3.5vw,1.3rem)",color:"#ffd534",fontWeight:700,marginBottom:12,animation:"hiGlow 1.5s ease-in-out infinite",letterSpacing:3}},"★ NEW HI-SCORE! ★"):null,
+        h("div",{style:{background:"rgba(255,255,255,.05)",borderRadius:16,padding:"20px 28px",textAlign:"center",animation:"slideIn .6s ease-out",border:"1px solid rgba(255,255,255,.08)",marginBottom:18,minWidth:200}},
+          h("div",{style:{fontSize:"0.65rem",color:"rgba(255,255,255,.35)",letterSpacing:3,marginBottom:6}},"SCORE"),
+          h("div",{style:{fontSize:"clamp(1.8rem,7vw,3rem)",fontWeight:900,fontFamily:MO,color:nhi?"#ffd534":"#fff"}},sc.toLocaleString()),
+          h("div",{style:{marginTop:10,fontSize:"0.7rem",color:"rgba(255,255,255,.4)",fontFamily:MO,lineHeight:2}},"LV "+lv+" · CLEARED "+tc+" · CHAIN "+mCh)),
+        h("div",{style:{width:"100%",maxWidth:300,marginBottom:18,animation:"slideIn .8s ease-out"}},
+          !submitted
+            ?h("div",{style:{display:"flex",gap:8}},
+                h("input",{type:"text",placeholder:"名前を入力",maxLength:12,value:pName,onChange:function(ev){setPName(ev.target.value)},onKeyDown:function(ev){if(ev.key==="Enter")handleSubmit()},style:{flex:1,padding:"10px 14px",borderRadius:25,border:"1px solid rgba(255,255,255,.35)",background:"rgba(255,255,255,.12)",color:"#fff",fontFamily:MO,fontSize:"16px",outline:"none"}}),
+                h("div",{onClick:handleSubmit,style:{padding:"10px 20px",borderRadius:25,background:sc>0&&pName.trim()?"linear-gradient(135deg,#3b8bff,#5a9fff)":"rgba(255,255,255,.08)",color:sc>0&&pName.trim()?"#fff":"rgba(255,255,255,.5)",fontFamily:F,fontSize:"0.75rem",fontWeight:700,cursor:sc>0&&pName.trim()?"pointer":"default",letterSpacing:1,opacity:1,whiteSpace:"nowrap",display:"flex",alignItems:"center",border:"1px solid rgba(255,255,255,.25)"}},lbLoad?"...":"登録"))
+            :h("div",{style:{textAlign:"center",color:"#2dd36f",fontFamily:MO,fontSize:"0.8rem"}},"✓ ランキングに登録しました！")),
+        lb.length>0?h("div",{style:{width:"100%",maxWidth:300,marginBottom:18}},
+          h("div",{style:{fontSize:"0.6rem",color:"rgba(255,255,255,.3)",letterSpacing:3,marginBottom:8,textAlign:"center"}},"TOP 3"),
+          lb.slice(0,3).map(function(en,i){return lbEntry(en,i,true)})):null,
+        h("div",{style:{display:"flex",gap:14,zIndex:10}},
+          h("div",{onClick:handleStart,style:{fontFamily:F,fontSize:"1rem",fontWeight:700,padding:"16px 36px",background:"linear-gradient(135deg,#ff3b6f,#ff6b8a)",color:"#fff",borderRadius:50,cursor:"pointer",letterSpacing:2,boxShadow:"0 0 20px rgba(255,59,111,.3)",textAlign:"center"}},"RETRY"),
+          h("div",{onClick:function(){d({type:"HOME"})},style:{fontFamily:F,fontSize:"1rem",fontWeight:700,padding:"16px 36px",background:"rgba(255,255,255,.08)",color:"#fff",border:"1px solid rgba(255,255,255,.15)",borderRadius:50,cursor:"pointer",letterSpacing:2,textAlign:"center"}},"HOME"))),
+      lbOverlay)}
 
   // ── GAME ───────────────────────────────────────────
   var hRow=ROWS;
   if(grid.length>0)for(var r=0;r<ROWS;r++){if(grid[r].some(function(b){return b!==null})){hRow=r;break}}
   var dng=hRow<=3?1-(hRow/4):0;
-
-  // clearingセットをキー形式で持つ
   var clearingSet=clearing||new Set();
 
-  // fallAnimKey: fallMapが変わった時だけアニメをリセットするためのキー
   if(fallMap!==prevFallMapRef.current&&Object.keys(fallMap).length>0){
     fallAnimKeyRef.current++;
     prevFallMapRef.current=fallMap;
@@ -379,11 +418,8 @@ function App(){
       var fallDist=fallMap[key]||0;
       var ch2=[];
       if(block&&!isClearing)ch2.push(h("div",{key:"h",style:{position:"absolute",top:2,left:2,width:4,height:4,borderRadius:"50%",background:"rgba(255,255,255,.35)"}}));
-
-      // 落下距離に応じたアニメ名・時間
       var fallAnim="blockFall"+(fallDist>=6?"Big":Math.min(fallDist,5));
       var fallDur=Math.min(150+fallDist*60,550);
-
       var cellStyle={
         borderRadius:block?6:0,
         background:block?getBg(block):"rgba(255,255,255,.02)",
@@ -395,9 +431,8 @@ function App(){
           ?"blockShine "+CLEAR_ANIM_MS+"ms ease-out forwards"
           :(block&&fallDist>0?fallAnim+" "+fallDur+"ms forwards":"none")
       };
-      // 落下するマスだけfakをkeyに含めてアニメをリセット、消去中・通常マスは固定key
       var cellKey=fallDist>0?(r+"-"+c+"-f"+fak):(r+"-"+c);
-      gc.push(h("div",{key:cellKey,"data-fak":fak,style:cellStyle},ch2));
+      gc.push(h("div",{key:cellKey,style:cellStyle},ch2));
     });
   });
 
@@ -405,7 +440,6 @@ function App(){
     h("div",{style:{fontSize:"clamp(1.2rem,4vw,2.2rem)",fontWeight:900,color:chC||"#fff",textShadow:"0 0 20px "+(chC||"#fff")+",0 0 40px "+(chC||"#fff")+"44",fontFamily:F,letterSpacing:2,whiteSpace:"nowrap"}},ch+" "+chL)));
 
   return h("div",{style:{width:"100%",height:"100%",display:"flex",flexDirection:"column",fontFamily:F,color:"#fff",background:"linear-gradient(180deg,#0a0a1a,hsl("+(250-lv*8)+",30%,8%))",overflow:"hidden",touchAction:"none",padding:0,margin:0}},
-    // ヘッダー
     h("div",{style:{width:"100%",padding:"5px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
       h("div",{onClick:function(){d({type:"HOME"})},style:{color:"rgba(255,255,255,.5)",fontFamily:F,fontSize:"0.65rem",cursor:"pointer",padding:"6px 8px",letterSpacing:1,background:"rgba(255,255,255,.06)",borderRadius:8}},"← 戻る"),
       h("div",{style:{fontSize:"0.55rem",fontWeight:900,letterSpacing:2}},
@@ -413,7 +447,6 @@ function App(){
         h("span",{style:{color:"#3b8bff"}},"DROP"),
         h("span",{style:{color:"#ffd534"}},"2")),
       h("div",{onClick:toggleMute,style:{color:"rgba(255,255,255,.4)",fontSize:"1rem",cursor:"pointer",padding:"6px 8px"}},muted?"🔇":"🔊")),
-    // スコア
     h("div",{style:{width:"100%",padding:"0 10px",display:"flex",justifyContent:"space-between",flexShrink:0}},
       h("div",null,
         h("div",{style:{fontSize:"0.4rem",color:"rgba(255,255,255,.3)",letterSpacing:3}},"SCORE"),
@@ -421,11 +454,9 @@ function App(){
       h("div",{style:{textAlign:"right"}},
         h("div",{style:{fontSize:"0.4rem",color:"rgba(255,255,255,.3)",letterSpacing:3}},"HI-SCORE"),
         h("div",{style:{fontSize:"clamp(0.9rem,4.5vw,1.5rem)",fontWeight:900,fontFamily:MO,color:"rgba(255,255,255,.35)"}},hi.toLocaleString()))),
-    // レベル・コンボ
     h("div",{style:{width:"100%",padding:"1px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,height:16}},
       h("div",{style:{fontSize:"0.6rem",fontWeight:700,color:"#2dd36f",letterSpacing:2}},"LV."+lv),
       ch>0?h("div",{style:{fontSize:"0.6rem",fontWeight:900,color:ch>=10?"#ffffff":ch>=5?"#ff3b6f":ch>=3?"#ffd534":"#ff9f43",letterSpacing:2,animation:"pulse .5s ease-in-out infinite"}},"CHAIN "+ch):null),
-    // グリッドエリア（画面幅いっぱい）
     h("div",{style:{flex:1,width:"100%",padding:"3px 6px 0",minHeight:0,overflow:"hidden"}},
       h("div",{
         ref:gridEl,
@@ -435,8 +466,7 @@ function App(){
         onMouseDown:onMD,
         onMouseUp:onMU,
         style:{
-          width:"100%",
-          height:"100%",
+          width:"100%",height:"100%",
           display:"grid",
           gridTemplateColumns:"repeat("+COLS+",1fr)",
           gridTemplateRows:"repeat("+ROWS+",1fr)",
@@ -451,15 +481,12 @@ function App(){
           transition:"box-shadow .3s,border-color .3s,background .3s"
         }
       },gc)),
-    // NEXT行（グリッドと同じ左右余白で幅を合わせる）
     h("div",{style:{width:"100%",padding:"2px 10px 6px",flexShrink:0}},
       h("div",{style:{fontSize:"0.4rem",color:"rgba(255,255,255,.2)",letterSpacing:3,marginBottom:1}},"NEXT"),
       h("div",{style:{display:"grid",gridTemplateColumns:"repeat("+COLS+",1fr)",gap:2,marginBottom:2}},
         nr.map(function(b,i){return h("div",{key:i,style:{height:10,borderRadius:3,background:getBg(b),opacity:.5}})})),
       h("div",{style:{fontSize:"0.4rem",color:"rgba(255,255,255,.18)",fontFamily:MO,textAlign:"center"}},"CLEARED "+tc+" · SPEED "+(getRI(lv)/1e3).toFixed(1)+"s")))}
 
-// moduleスクリプト(Firebase)は非同期で読まれるため、
-// __fbLBの準備を待ってからレンダリング
 function startApp(){
   RD.render(h(App),document.getElementById("root"));
 }
